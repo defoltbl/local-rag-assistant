@@ -1,8 +1,7 @@
-"""PDF loading, chunking, and an in-memory vector index."""
-import numpy as np
+"""PDF loading, chunking, and the RAG index (backed by PostgreSQL + pgvector)."""
 from pypdf import PdfReader
 
-from app import config
+from app import config, db
 from app.llm import LLMProvider
 
 
@@ -30,28 +29,25 @@ def chunk_pages(pages):
 
 
 class RagIndex:
-    """Holds the embedded chunks for one document, in memory."""
+    """Orchestrates the RAG pipeline. Storage lives in PostgreSQL (see db.py)."""
 
     def __init__(self, provider: LLMProvider):
         self.provider = provider
-        self.chunks = []
-        self.vectors = None
 
-    def build(self, path: str) -> int:
-        """Load, chunk, and embed a PDF. Returns the number of chunks."""
+    def build(self, path: str, document: str) -> int:
+        """Load, chunk, embed a PDF and persist it. Returns the chunk count."""
         pages = load_pdf(path)
-        self.chunks = chunk_pages(pages)
-        self.vectors = np.vstack(
-            [self.provider.embed(c["text"]) for c in self.chunks]
-        )
-        return len(self.chunks)
+        chunks = chunk_pages(pages)
+        rows = [
+            (c["page"], c["text"], self.provider.embed(c["text"]))
+            for c in chunks
+        ]
+        db.insert_chunks(document, rows)
+        return len(chunks)
 
     def is_ready(self) -> bool:
-        return self.vectors is not None
+        return db.count_chunks() > 0
 
     def search(self, query: str):
-        """Return the TOP_K chunks most similar to the query."""
         q = self.provider.embed(query)
-        scores = self.vectors @ q
-        top = np.argsort(scores)[::-1][:config.TOP_K]
-        return [self.chunks[i] for i in top]
+        return db.search(q, config.TOP_K)

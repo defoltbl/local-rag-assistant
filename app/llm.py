@@ -1,6 +1,8 @@
 """Pluggable LLM provider layer.
+
 """
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 
 import numpy as np
 import ollama
@@ -17,7 +19,11 @@ class LLMProvider(ABC):
 
     @abstractmethod
     def generate(self, system: str, user: str) -> str:
-        """Return the model's answer given a system and user message."""
+        """Return the full answer given a system and user message."""
+
+    @abstractmethod
+    def generate_stream(self, system: str, user: str) -> Iterator[str]:
+        """Yield the answer token by token as it is produced."""
 
 
 class OllamaProvider(LLMProvider):
@@ -32,17 +38,28 @@ class OllamaProvider(LLMProvider):
         vec = np.array(resp["embedding"], dtype=np.float32)
         return vec / np.linalg.norm(vec)
 
+    def _messages(self, system: str, user: str):
+        return [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
+
     def generate(self, system: str, user: str) -> str:
-        resp = ollama.chat(
-            model=self.gen_model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        )
+        resp = ollama.chat(model=self.gen_model, messages=self._messages(system, user))
         return resp["message"]["content"]
+
+    def generate_stream(self, system: str, user: str) -> Iterator[str]:
+        stream = ollama.chat(
+            model=self.gen_model,
+            messages=self._messages(system, user),
+            stream=True,
+        )
+        for chunk in stream:
+            token = chunk["message"]["content"]
+            if token:
+                yield token
 
 
 def get_provider() -> LLMProvider:
-    """Return the configured provider. Swap the implementation here later."""
+    """Return the configured provider."""
     return OllamaProvider(config.EMBED_MODEL, config.GEN_MODEL)
