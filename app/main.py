@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app import db
+from app import config, db
 from app.llm import get_provider
 from app.rag import RagIndex
 
@@ -30,10 +30,7 @@ app = FastAPI(title="Local RAG Assistant", lifespan=lifespan)
 # Allow the React dev server (different port) to call this API.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173", "http://127.0.0.1:5173",
-        "http://localhost:5174", "http://127.0.0.1:5174",
-    ],
+    allow_origins=config.CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
