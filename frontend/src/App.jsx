@@ -3,7 +3,33 @@ import "./index.css";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
+function MoonIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden>
+      <path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function SunIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export default function App() {
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved) return saved;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
   const [status, setStatus] = useState(null); // { chunks } once a doc is loaded
   const [connected, setConnected] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -127,9 +153,18 @@ export default function App() {
           <span className="wordmark-main">local rag</span>
           <span className="wordmark-sub">assistant</span>
         </div>
-        <div className={`beacon ${connected ? "on" : "off"}`}>
-          <span className="beacon-dot" />
-          {connected ? "on this machine" : "backend offline"}
+        <div className="masthead-right">
+          <div className={`beacon ${connected ? "on" : "off"}`}>
+            <span className="beacon-dot" />
+            {connected ? "on this machine" : "backend offline"}
+          </div>
+          <button
+            className="theme-toggle"
+            onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
+            aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+          >
+            {theme === "light" ? <MoonIcon /> : <SunIcon />}
+          </button>
         </div>
       </header>
 
@@ -212,47 +247,49 @@ export default function App() {
         </div>
       </section>
 
-      {error && <div className="error">{error}</div>}
+      <div className="content-col">
+        {error && <div className="error">{error}</div>}
 
-      {(answer || streaming) && (
-        <section className="answer-surface">
-          {thinking ? (
-            <div className="thinking">
-              <span className="dot" />
-              <span className="dot" />
-              <span className="dot" />
-              <span className="thinking-label">Retrieving from your document</span>
-            </div>
-          ) : (
-            <p className="excerpt">
-              {answer}
-              {streaming && <span className="caret" />}
-            </p>
-          )}
+        {(answer || streaming) && (
+          <section className="answer-surface">
+            {thinking ? (
+              <div className="thinking">
+                <span className="dot" />
+                <span className="dot" />
+                <span className="dot" />
+                <span className="thinking-label">Retrieving from your document</span>
+              </div>
+            ) : (
+              <p className="excerpt">
+                {answer}
+                {streaming && <span className="caret" />}
+              </p>
+            )}
 
-          {meta && (
-            <footer className="citations">
-              <div className="cite-group">
-                <span className="cite-label">cited</span>
-                {meta.cited.length ? (
-                  meta.cited.map((p, i) => (
-                    <span key={p} className="chip cited" style={{ "--i": i }}>{p}</span>
-                  ))
-                ) : (
-                  <span className="chip none">none</span>
-                )}
-              </div>
-              <div className="cite-group">
-                <span className="cite-label">retrieved</span>
-                {meta.retrieved.map((p, i) => (
-                  <span key={p} className="chip" style={{ "--i": i }}>{p}</span>
-                ))}
-              </div>
-              <span className="elapsed mono">{meta.elapsed}s</span>
-            </footer>
-          )}
-        </section>
-      )}
+            {meta && (
+              <footer className="citations">
+                <div className="cite-group">
+                  <span className="cite-label">cited</span>
+                  {meta.cited.length ? (
+                    meta.cited.map((p, i) => (
+                      <span key={p} className="chip cited" style={{ "--i": i }}>{p}</span>
+                    ))
+                  ) : (
+                    <span className="chip none">none</span>
+                  )}
+                </div>
+                <div className="cite-group">
+                  <span className="cite-label">retrieved</span>
+                  {meta.retrieved.map((p, i) => (
+                    <span key={p} className="chip" style={{ "--i": i }}>{p}</span>
+                  ))}
+                </div>
+                <span className="elapsed mono">{meta.elapsed}s</span>
+              </footer>
+            )}
+          </section>
+        )}
+      </div>
     </div>
   );
 }
