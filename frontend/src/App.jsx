@@ -6,8 +6,9 @@ const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 export default function App() {
   const [status, setStatus] = useState(null); // { chunks } once a doc is loaded
   const [connected, setConnected] = useState(false);
-  const [fileName, setFileName] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
@@ -17,7 +18,6 @@ export default function App() {
 
   const fileRef = useRef(null);
 
-  // On load, check the backend and how many chunks are already stored.
   useEffect(() => {
     fetch(`${API}/health`)
       .then((r) => r.json())
@@ -28,9 +28,18 @@ export default function App() {
       .catch(() => setConnected(false));
   }, []);
 
+  function pickFile(file) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      setError("That is not a PDF. Choose a .pdf file.");
+      return;
+    }
+    setError("");
+    setSelectedFile(file);
+  }
+
   async function handleUpload() {
-    const file = fileRef.current?.files?.[0];
-    if (!file) {
+    if (!selectedFile) {
       setError("Choose a PDF first.");
       return;
     }
@@ -38,15 +47,14 @@ export default function App() {
     setUploading(true);
     try {
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", selectedFile);
       const res = await fetch(`${API}/upload`, { method: "POST", body: form });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.detail || "Upload failed.");
       }
       const data = await res.json();
-      setFileName(data.filename);
-      setStatus({ chunks: data.chunks });
+      setStatus({ chunks: data.chunks, name: data.filename });
       setAnswer("");
       setMeta(null);
     } catch (e) {
@@ -75,8 +83,6 @@ export default function App() {
         throw new Error(body.detail || "Query failed.");
       }
 
-      // Read the Server-Sent Events stream. Events are separated by a blank
-      // line; each carries a JSON payload after "data: ".
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -87,7 +93,7 @@ export default function App() {
         buffer += decoder.decode(value, { stream: true });
 
         const events = buffer.split("\n\n");
-        buffer = events.pop(); // keep any partial event for the next chunk
+        buffer = events.pop();
 
         for (const evt of events) {
           const line = evt.trim();
@@ -112,10 +118,11 @@ export default function App() {
   }
 
   const ready = !!status;
+  const thinking = streaming && !answer;
 
   return (
     <div className="page">
-      <header className="masthead">
+      <header className="masthead reveal" style={{ "--d": "0ms" }}>
         <div className="wordmark">
           <span className="wordmark-main">local rag</span>
           <span className="wordmark-sub">assistant</span>
@@ -126,24 +133,56 @@ export default function App() {
         </div>
       </header>
 
-      <p className="tagline">
+      <p className="tagline reveal" style={{ "--d": "80ms" }}>
         Ask questions about a PDF. Retrieved, answered, and cited entirely on
         your own machine.
       </p>
 
-      <section className="step">
+      <section className="step reveal" style={{ "--d": "160ms" }}>
         <div className="step-mark">1</div>
         <div className="step-body">
           <h2>Load a document</h2>
-          <div className="row">
-            <input ref={fileRef} type="file" accept="application/pdf" className="file" />
-            <button onClick={handleUpload} disabled={uploading} className="btn">
+          <div
+            className={`dropzone ${dragOver ? "over" : ""} ${selectedFile ? "has-file" : ""}`}
+            onClick={() => fileRef.current?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              pickFile(e.dataTransfer.files?.[0]);
+            }}
+          >
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/pdf"
+              hidden
+              onChange={(e) => pickFile(e.target.files?.[0])}
+            />
+            <svg className="dz-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M12 16V4m0 0L7 9m5-5l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+            <span className="dz-text">
+              {selectedFile ? selectedFile.name : "Drop a PDF here, or click to browse"}
+            </span>
+          </div>
+          <div className="row end">
+            <button
+              onClick={handleUpload}
+              disabled={uploading || !selectedFile}
+              className="btn"
+            >
               {uploading ? "Loading\u2026" : "Load"}
             </button>
           </div>
           {status && (
             <p className="note">
-              {fileName ? `${fileName} \u2014 ` : ""}
+              {status.name ? `${status.name} \u2014 ` : ""}
               <span className="mono">{status.chunks}</span> chunks embedded and
               stored.
             </p>
@@ -151,7 +190,7 @@ export default function App() {
         </div>
       </section>
 
-      <section className={`step ${ready ? "" : "muted"}`}>
+      <section className={`step reveal ${ready ? "" : "muted"}`} style={{ "--d": "240ms" }}>
         <div className="step-mark">2</div>
         <div className="step-body">
           <h2>Ask</h2>
@@ -177,18 +216,27 @@ export default function App() {
 
       {(answer || streaming) && (
         <section className="answer-surface">
-          <p className="excerpt">
-            {answer}
-            {streaming && <span className="caret" />}
-          </p>
+          {thinking ? (
+            <div className="thinking">
+              <span className="dot" />
+              <span className="dot" />
+              <span className="dot" />
+              <span className="thinking-label">Retrieving from your document</span>
+            </div>
+          ) : (
+            <p className="excerpt">
+              {answer}
+              {streaming && <span className="caret" />}
+            </p>
+          )}
 
           {meta && (
             <footer className="citations">
               <div className="cite-group">
                 <span className="cite-label">cited</span>
                 {meta.cited.length ? (
-                  meta.cited.map((p) => (
-                    <span key={p} className="chip cited">{p}</span>
+                  meta.cited.map((p, i) => (
+                    <span key={p} className="chip cited" style={{ "--i": i }}>{p}</span>
                   ))
                 ) : (
                   <span className="chip none">none</span>
@@ -196,8 +244,8 @@ export default function App() {
               </div>
               <div className="cite-group">
                 <span className="cite-label">retrieved</span>
-                {meta.retrieved.map((p) => (
-                  <span key={p} className="chip">{p}</span>
+                {meta.retrieved.map((p, i) => (
+                  <span key={p} className="chip" style={{ "--i": i }}>{p}</span>
                 ))}
               </div>
               <span className="elapsed mono">{meta.elapsed}s</span>
