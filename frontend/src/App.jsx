@@ -142,36 +142,36 @@ export default function App() {
         <div className="step-mark">1</div>
         <div className="step-body">
           <h2>Load a document</h2>
-          <div
-            className={`dropzone ${dragOver ? "over" : ""} ${selectedFile ? "has-file" : ""}`}
-            onClick={() => fileRef.current?.click()}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragOver(false);
-              pickFile(e.dataTransfer.files?.[0]);
-            }}
-          >
-            <input
-              ref={fileRef}
-              type="file"
-              accept="application/pdf"
-              hidden
-              onChange={(e) => pickFile(e.target.files?.[0])}
-            />
-            <svg className="dz-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path d="M12 16V4m0 0L7 9m5-5l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-            <span className="dz-text">
-              {selectedFile ? selectedFile.name : "Drop a PDF here, or click to browse"}
-            </span>
-          </div>
-          <div className="row end">
+          <div className="row">
+            <div
+              className={`dropzone ${dragOver ? "over" : ""} ${selectedFile ? "has-file" : ""}`}
+              onClick={() => fileRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                pickFile(e.dataTransfer.files?.[0]);
+              }}
+            >
+              <input
+                ref={fileRef}
+                type="file"
+                accept="application/pdf"
+                hidden
+                onChange={(e) => pickFile(e.target.files?.[0])}
+              />
+              <svg className="dz-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M12 16V4m0 0L7 9m5-5l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+              <span className="dz-text">
+                {selectedFile ? selectedFile.name : "Drop a PDF here, or click to browse"}
+              </span>
+            </div>
             <button
               onClick={handleUpload}
               disabled={uploading || !selectedFile}

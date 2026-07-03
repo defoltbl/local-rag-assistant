@@ -91,16 +91,17 @@ body {
 }
 
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.row.end { justify-content: flex-end; margin-top: 12px; }
 
 /* Dropzone */
 .dropzone {
+  flex: 1;
+  min-width: 200px;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 20px 20px;
+  gap: 12px;
+  padding: 11px 14px;
   border: 1.5px dashed var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--surface);
   cursor: pointer;
   transition: border-color 0.18s, background 0.18s, transform 0.18s;
@@ -112,7 +113,7 @@ body {
   transform: translateY(-1px);
 }
 .dropzone.has-file { border-style: solid; border-color: var(--accent); }
-.dz-icon { width: 22px; height: 22px; color: var(--accent); flex-shrink: 0; }
+.dz-icon { width: 20px; height: 20px; color: var(--accent); flex-shrink: 0; }
 .dz-text { font-size: 14px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dropzone.has-file .dz-text { color: var(--ink); font-weight: 500; }
 
@@ -236,7 +237,7 @@ body {
 
 @media (max-width: 520px) {
   .page { padding: 32px 18px 72px; }
-  .btn, .text { width: 100%; }
+  .btn, .text, .dropzone { width: 100%; }
   .row { flex-direction: column; align-items: stretch; }
   .row.end { align-items: stretch; }
 }
