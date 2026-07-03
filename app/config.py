@@ -15,7 +15,7 @@ TOP_K = 4
 
 # Database (override with an environment variable in production)
 DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql://rag:rag@localhost:5432/rag"
+    "DATABASE_URL", "postgresql://rag:rag@localhost:5433/rag"
 )
 
 # Origins allowed to call the API (comma-separated env var in prod).
