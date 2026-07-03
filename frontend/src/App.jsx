@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import "./index.css";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const MAX_MB = 20;
 
 function MoonIcon() {
   return (
@@ -19,6 +20,12 @@ function SunIcon() {
   );
 }
 
+function friendlyError(e) {
+  // fetch throws a TypeError when it can't reach the server at all.
+  if (e instanceof TypeError) return "Could not reach the backend. Is it running?";
+  return e.message;
+}
+
 export default function App() {
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem("theme");
@@ -30,17 +37,18 @@ export default function App() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  const [status, setStatus] = useState(null); // { chunks } once a doc is loaded
+  const [status, setStatus] = useState(null);
   const [connected, setConnected] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
-  const [meta, setMeta] = useState(null); // { cited, retrieved, elapsed }
+  const [meta, setMeta] = useState(null);
   const [streaming, setStreaming] = useState(false);
-  const [error, setError] = useState("");
+  const [askError, setAskError] = useState("");
 
   const fileRef = useRef(null);
 
@@ -57,19 +65,25 @@ export default function App() {
   function pickFile(file) {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".pdf")) {
-      setError("That is not a PDF. Choose a .pdf file.");
+      setSelectedFile(null);
+      setUploadError("That file is not a PDF. Choose a .pdf file.");
       return;
     }
-    setError("");
+    if (file.size > MAX_MB * 1024 * 1024) {
+      setSelectedFile(null);
+      setUploadError(`That PDF is over ${MAX_MB} MB. Choose a smaller file.`);
+      return;
+    }
+    setUploadError("");
     setSelectedFile(file);
   }
 
   async function handleUpload() {
     if (!selectedFile) {
-      setError("Choose a PDF first.");
+      setUploadError("Choose a PDF first.");
       return;
     }
-    setError("");
+    setUploadError("");
     setUploading(true);
     try {
       const form = new FormData();
@@ -77,14 +91,15 @@ export default function App() {
       const res = await fetch(`${API}/upload`, { method: "POST", body: form });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.detail || "Upload failed.");
+        throw new Error(body.detail || "Upload failed. Try again.");
       }
       const data = await res.json();
       setStatus({ chunks: data.chunks, name: data.filename });
+      setConnected(true);
       setAnswer("");
       setMeta(null);
     } catch (e) {
-      setError(e.message);
+      setUploadError(friendlyError(e));
     } finally {
       setUploading(false);
     }
@@ -92,8 +107,15 @@ export default function App() {
 
   async function handleAsk() {
     const q = question.trim();
-    if (!q) return;
-    setError("");
+    if (!q) {
+      setAskError("Type a question to ask.");
+      return;
+    }
+    if (!status) {
+      setAskError("Load a document first.");
+      return;
+    }
+    setAskError("");
     setAnswer("");
     setMeta(null);
     setStreaming(true);
@@ -106,7 +128,7 @@ export default function App() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.detail || "Query failed.");
+        throw new Error(body.detail || "Query failed. Try again.");
       }
 
       const reader = res.body.getReader();
@@ -137,7 +159,7 @@ export default function App() {
         }
       }
     } catch (e) {
-      setError(e.message);
+      setAskError(friendlyError(e));
     } finally {
       setStreaming(false);
     }
@@ -179,7 +201,7 @@ export default function App() {
           <h2>Load a document</h2>
           <div className="row">
             <div
-              className={`dropzone ${dragOver ? "over" : ""} ${selectedFile ? "has-file" : ""}`}
+              className={`dropzone ${dragOver ? "over" : ""} ${selectedFile ? "has-file" : ""} ${uploadError ? "invalid" : ""}`}
               onClick={() => fileRef.current?.click()}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -207,20 +229,20 @@ export default function App() {
                 {selectedFile ? selectedFile.name : "Drop a PDF here, or click to browse"}
               </span>
             </div>
-            <button
-              onClick={handleUpload}
-              disabled={uploading || !selectedFile}
-              className="btn"
-            >
+            <button onClick={handleUpload} disabled={uploading} className="btn">
               {uploading ? "Loading\u2026" : "Load"}
             </button>
           </div>
-          {status && (
-            <p className="note">
-              {status.name ? `${status.name} \u2014 ` : ""}
-              <span className="mono">{status.chunks}</span> chunks embedded and
-              stored.
-            </p>
+          {uploadError ? (
+            <p className="field-error">{uploadError}</p>
+          ) : (
+            status && (
+              <p className="note">
+                {status.name ? `${status.name} \u2014 ` : ""}
+                <span className="mono">{status.chunks}</span> chunks embedded and
+                stored.
+              </p>
+            )
           )}
         </div>
       </section>
@@ -232,24 +254,29 @@ export default function App() {
           <div className="row">
             <input
               type="text"
-              className="text"
+              className={`text ${askError ? "invalid" : ""}`}
               placeholder="How many vacation days do employees get?"
               value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && ready && !streaming && handleAsk()}
+              onChange={(e) => {
+                setQuestion(e.target.value);
+                if (askError) setAskError("");
+              }}
+              onKeyDown={(e) => e.key === "Enter" && !streaming && handleAsk()}
               disabled={!ready || streaming}
             />
             <button onClick={handleAsk} disabled={!ready || streaming} className="btn">
               {streaming ? "Answering\u2026" : "Ask"}
             </button>
           </div>
-          {!ready && <p className="note">Load a document to start asking.</p>}
+          {askError ? (
+            <p className="field-error">{askError}</p>
+          ) : (
+            !ready && <p className="note">Load a document to start asking.</p>
+          )}
         </div>
       </section>
 
       <div className="content-col">
-        {error && <div className="error">{error}</div>}
-
         {(answer || streaming) && (
           <section className="answer-surface">
             {thinking ? (

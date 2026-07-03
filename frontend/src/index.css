@@ -255,6 +255,24 @@ body {
 }
 .elapsed { margin-left: auto; font-size: 12px; color: var(--muted); }
 
+
+/* Validation feedback */
+.field-error {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--danger);
+  animation: shake 0.32s ease-in-out;
+}
+.dropzone.invalid { border-color: var(--danger); border-style: solid; }
+.dropzone.invalid .dz-icon { color: var(--danger); }
+.text.invalid { border-color: var(--danger); }
+.text.invalid:focus { box-shadow: 0 0 0 3px rgba(178, 60, 46, 0.14); }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
   .reveal, .error, .answer-surface, .chip { opacity: 1 !important; transform: none !important; }
