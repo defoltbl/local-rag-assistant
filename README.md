@@ -262,10 +262,10 @@ A few decisions worth highlighting:
   supports GET, so the frontend reads the response body as a stream and parses the
   SSE frames manually, allowing a POST body carrying the question.
 - **Similarity search runs in the database.** Rather than loading every vector into
-  the application, pgvector's cosine-distance operator performs the nearest-neighbor
+  the application, pgvector's cosine-distance operator performs the nearest-neighborß
   search in SQL, and a connection pool reuses database connections across requests.
 
 ## Author
 
 **Andrii Maksymenko**
-[andrii-maksymenko.com] · (https://andrii-maksymenko.com) · [github.com/defoltbl](https://github.com/defoltbl)
+[andrii-maksymenko.com](https://andrii-maksymenko.com) · [github.com/defoltbl](https://github.com/defoltbl)
