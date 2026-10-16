@@ -14,6 +14,8 @@ cost, and no document data ever leaves your computer.
 ![Ollama](https://img.shields.io/badge/Ollama-local%20LLM-black)
 ![Docker](https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white)
 
+**Case study:** [andrii-maksymenko.com/projects/local-rag-assistant](https://andrii-maksymenko.com/projects/local-rag-assistant/) – the problem, the key decisions and diagrams of how it works.
+
 ---
 
 ## Contents
@@ -96,6 +98,8 @@ RAG combines document retrieval with a language model in three stages:
    instruction to answer only from them and to cite the pages used. The answer is
    streamed back to the client as it is produced.
 
+![Ingest once, then answer only from the document](docs/rag_flow.png)
+
 ## Tech stack
 
 | Layer          | Technology                                                        |
@@ -124,6 +128,7 @@ local-rag-assistant/
 │   └── nginx.conf            # static serving with SPA fallback
 ├── tests/
 │   └── test_api.py           # API tests (mock the model + DB, run in CI)
+├── docs/                     # diagrams used in this README
 ├── .github/workflows/ci.yml  # lint + test + build pipeline
 ├── Dockerfile                # backend image
 ├── docker-compose.yml        # full-stack orchestration
@@ -251,6 +256,8 @@ the same suite the CI pipeline runs on every push.
 
 A few decisions worth highlighting:
 
+![Every model call goes through one interface](docs/rag_layers.png)
+
 - **The model layer is an interface, not a hardcoded call.** `LLMProvider` defines
   `embed`, `generate`, and `generate_stream`; `OllamaProvider` implements them. The
   retrieval and API layers depend only on the interface, which is what makes the
@@ -262,7 +269,7 @@ A few decisions worth highlighting:
   supports GET, so the frontend reads the response body as a stream and parses the
   SSE frames manually, allowing a POST body carrying the question.
 - **Similarity search runs in the database.** Rather than loading every vector into
-  the application, pgvector's cosine-distance operator performs the nearest-neighborß
+  the application, pgvector's cosine-distance operator performs the nearest-neighbor
   search in SQL, and a connection pool reuses database connections across requests.
 
 ## Author
